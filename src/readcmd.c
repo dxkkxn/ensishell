@@ -14,24 +14,21 @@
 #include <string.h>
 #include "readcmd.h"
 
-static void memory_error(void)
-{
+static void memory_error(void) {
 	errno = ENOMEM;
 	perror(0);
 	exit(1);
 }
 
 
-static void *xmalloc(size_t size)
-{
+static void *xmalloc(size_t size) {
 	void *p = malloc(size);
 	if (!p) memory_error();
 	return p;
 }
 
 
-static void *xrealloc(void *ptr, size_t size)
-{
+static void *xrealloc(void *ptr, size_t size) {
 	void *p = realloc(ptr, size);
 	if (!p) memory_error();
 	return p;
@@ -39,8 +36,7 @@ static void *xrealloc(void *ptr, size_t size)
 
 #if USE_GNU_READLINE == 0
 /* Read a line from standard input and put it in a char[] */
-char *readline(char *prompt)
-{
+char *readline(char *prompt){
 	size_t buf_len = 16;
 	char *buf = xmalloc(buf_len * sizeof(char));
 
@@ -139,8 +135,7 @@ static void read_word(char ** cur, char ** cur_buf) {
 }
 
 /* Split the string in words, according to the simple shell grammar. */
-static char **split_in_words(char *line)
-{
+static char **split_in_words(char *line) {
 	char *cur = line;
 	char *buf = malloc(strlen(line) + 1);
 	char *cur_buf;
@@ -190,8 +185,7 @@ static char **split_in_words(char *line)
 }
 
 
-static void freeseq(char ***seq)
-{
+static void freeseq(char ***seq) {
 	int i, j;
 
 	for (i=0; seq[i]!=0; i++) {
@@ -205,16 +199,14 @@ static void freeseq(char ***seq)
 
 
 /* Free the fields of the structure but not the structure itself */
-static void freecmd(struct cmdline *s)
-{
+static void freecmd(struct cmdline *s) {
 	if (s->in) free(s->in);
 	if (s->out) free(s->out);
 	if (s->seq) freeseq(s->seq);
 }
 
 
-struct cmdline *parsecmd(char **pline)
-{
+struct cmdline *parsecmd(char **pline) {
 	char *line = *pline;
 	static struct cmdline *static_cmdline = 0;
 	struct cmdline *s = static_cmdline;
