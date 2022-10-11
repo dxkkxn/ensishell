@@ -28,21 +28,30 @@
 #if USE_GUILE == 1
 #include <libguile.h>
 
+pid_t xfork() {
+  pid_t res;
+  if ((res = fork()) == -1) {
+    perror("fork error :");
+    exit(1);
+  }
+  return res;
+}
+
 /*
  *  execute all commands passed as parameter
  *
 */
 void execute_command(struct cmdline * commands) {
-	// for now execute just the first
-	char** curr = commands->seq[0];
-	pid_t pid_son;
-	if ((pid_son = fork()) == 0) {
-		//son
-		execvp(curr[0], curr);
-		assert(1==0); // line never executed
-	}
-	int wstatus;
-	waitpid(pid_son, &wstatus, 0);
+  // for now execute just the first
+  char** curr = commands->seq[0];
+  pid_t pid_son;
+  if ((pid_son = xfork()) == 0) {
+    //son
+    execvp(curr[0], curr);
+    assert(1==0); // line never executed
+  }
+  int wstatus;
+  waitpid(pid_son, &wstatus, 0);
 
 }
 int question6_executer(char *line) {
