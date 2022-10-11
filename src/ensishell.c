@@ -88,30 +88,49 @@ void copy_cmd(char ** cmd, char **cmd2) {
   }
   (*cmd)[size] = '\0';
 }
-void execute_command(struct cmdline * commands) {
+
+void execute_command(char ** command, int bg) {
+  execvp(command[0], command);
   // for now execute just the first
-  char** curr = commands->seq[0];
-  if (strcmp(curr[0], "jobs") == 0) {
-    return jobs();
+  /* if (strcmp(command[0], "jobs") == 0) { */
+  /*   return jobs(); */
+  /* } */
+  /* pid_t pid_son; */
+  /* if ((pid_son = xfork()) == 0) { */
+  /*   //son */
+  /*   execvp(command[0], command); */
+  /*   assert(1==0); // line never executed */
+  /* } */
+  /* if (bg) { */
+  /*   struct bg_cmd new_cmd; */
+  /*   new_cmd.pid = pid_son; */
+  /*   new_cmd.cmd = NULL; */
+  /*   copy_cmd(&new_cmd.cmd, command); */
+  /*   assert(new_cmd.cmd != NULL); */
+  /*   push(&head, new_cmd); */
+  /* } else { */
+  /*   waitpid(pid_son, NULL, 0); */
+  /* } */
+
+}
+
+void execute_sequence(struct cmdline * commands) {
+  int arr_pipe[2];
+  if (commands->seq[1] != NULL) {
+    pipe(arr_pipe);
   }
   pid_t pid_son;
   if ((pid_son = xfork()) == 0) {
-    //son
-    execvp(curr[0], curr);
-    assert(1==0); // line never executed
-  }
-  if (!commands->bg) {
-    waitpid(pid_son, NULL, 0);
+    dup2(arr_pipe[1], STDOUT_FILENO);
+    close(arr_pipe[1]); close(arr_pipe[0]);
+    execute_command(commands->seq[0], 0);
   } else {
-    struct bg_cmd new_cmd;
-    new_cmd.pid = pid_son;
-    new_cmd.cmd = NULL;
-    copy_cmd(&new_cmd.cmd, curr);
-    assert(new_cmd.cmd != NULL);
-    push(&head, new_cmd);
+    dup2(arr_pipe[0], STDIN_FILENO);
+    close(arr_pipe[1]); close(arr_pipe[0]);
+    execute_command(commands->seq[1], 0);
   }
-
 }
+
 int question6_executer(char *line) {
   /* Question 6: Insert your code to execute the command line
    * identically to the standard execution scheme:
@@ -194,7 +213,7 @@ int main() {
 	  terminate(0);
 	}
 
-	execute_command(l);
+	execute_sequence(l);
 
 	if (l->err) {
 	  /* Syntax error, read another command */
