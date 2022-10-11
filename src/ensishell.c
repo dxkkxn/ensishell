@@ -8,12 +8,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <assert.h>
 #include <sys/wait.h>
 
 #include "readcmd.h"
 #include "variante.h"
+#include "jobslinkedlist.h"
+
 
 #ifndef VARIANTE
 #error "Variante non défini !!"
@@ -37,21 +40,76 @@ pid_t xfork() {
   return res;
 }
 
+
+node_t * head = NULL;
 /*
  *  execute all commands passed as parameter
  *
 */
+
+void jobs(void) {
+  node_t * curr = head;
+  int n = length(head);
+  int i = 0;
+  while (curr != NULL) {
+    int wstatus;
+    waitpid(curr->val.pid, &wstatus, WNOHANG);
+    if (WIFEXITED(wstatus)) {
+      printf("[%d] Done pid : %d command : %s\n", n-i, curr->val.pid, curr->val.cmd);
+      delete(&head, curr);
+    } else {
+      printf("[%d] Running  pid : %d command : %s\n", n-i, curr->val.pid, curr->val.cmd);
+    }
+    curr = curr->next;
+    i++;
+  }
+}
+
+size_t compute_needed_size(char **cmd) {
+  int i = 0;
+  size_t res = 0;
+  while (cmd[i] != NULL) {
+    res += strlen(cmd[i]) + 1; // + 1 to add a space between words
+    i++;
+  }
+  return res - 1; // -1 to delete the useless last space
+}
+
+void copy_cmd(char ** cmd, char **cmd2) {
+  size_t size = compute_needed_size(cmd2);
+  *cmd = malloc(sizeof(char) * size + 1); // + 1 '\0' of last char
+  int i = 0; // cmd index
+  int j = 0; //cmd2 index
+  while (cmd2[j] != NULL) {
+    strcpy(*cmd + i, cmd2[j]);
+    i += strlen(cmd2[j]);
+    (*cmd)[i++] = ' ';
+    j++;
+  }
+  (*cmd)[size] = '\0';
+}
 void execute_command(struct cmdline * commands) {
   // for now execute just the first
   char** curr = commands->seq[0];
+  if (strcmp(curr[0], "jobs") == 0) {
+    return jobs();
+  }
   pid_t pid_son;
   if ((pid_son = xfork()) == 0) {
     //son
     execvp(curr[0], curr);
     assert(1==0); // line never executed
   }
-  int wstatus;
-  waitpid(pid_son, &wstatus, 0);
+  if (!commands->bg) {
+    waitpid(pid_son, NULL, 0);
+  } else {
+    struct bg_cmd new_cmd;
+    new_cmd.pid = pid_son;
+    new_cmd.cmd = NULL;
+    copy_cmd(&new_cmd.cmd, curr);
+    assert(new_cmd.cmd != NULL);
+    push(&head, new_cmd);
+  }
 
 }
 int question6_executer(char *line) {
