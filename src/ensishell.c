@@ -5,6 +5,7 @@
  * Ce code est distribué sous la licence GPLv3+.     *
  *****************************************************/
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,88 +48,122 @@ node_t * head = NULL;
  *
 */
 
+void bg_command_finished(int sig) {
+    /* printf("[%d] Done pid : %d command : %s\n", n-i, curr->val.pid, curr->val.cmd); */
+    errno = 0;
+    pid_t exited_process = waitpid(-1, NULL, WNOHANG);
+    node_t * exited_node;
+    if ((exited_node = in(exited_process, head))) {
+      printf("DONE pid: %d command : %s\n", exited_process,
+             exited_node->val.cmd);
+      delete(&head, exited_node);
+    }
+}
+
 void jobs(void) {
   node_t * curr = head;
   int n = length(head);
   int i = 0;
   while (curr != NULL) {
-    int wstatus;
-    waitpid(curr->val.pid, &wstatus, WNOHANG);
-    if (WIFEXITED(wstatus)) {
-      printf("[%d] Done pid : %d command : %s\n", n-i, curr->val.pid, curr->val.cmd);
-      delete(&head, curr);
-    } else {
-      printf("[%d] Running  pid : %d command : %s\n", n-i, curr->val.pid, curr->val.cmd);
-    }
+    printf("[%d] Running  pid : %d command : %s\n", n-i, curr->val.pid, curr->val.cmd);
     curr = curr->next;
     i++;
   }
 }
 
-size_t compute_needed_size(char **cmd) {
+size_t compute_needed_size(char ***seq) {
   int i = 0;
   size_t res = 0;
-  while (cmd[i] != NULL) {
-    res += strlen(cmd[i]) + 1; // + 1 to add a space between words
+  int j = 0;
+  while (seq[i] != NULL) {
+    j = 0;
+    while (seq[i][j] != NULL) {
+      res += strlen(seq[i][j]) + 1; // + 1 to add a space between words
+      j++;
+    }
+    res += 2; // pipe symbol and a space
     i++;
   }
-  return res - 1; // -1 to delete the useless last space
+  return res - 3; // remove last pipe symbol and 2 spaces
 }
 
-void copy_cmd(char ** cmd, char **cmd2) {
-  size_t size = compute_needed_size(cmd2);
+void copy_seq(char ** cmd, char ***seq) {
+  size_t size = compute_needed_size(seq);
   *cmd = malloc(sizeof(char) * size + 1); // + 1 '\0' of last char
+  int k = 0;
   int i = 0; // cmd index
-  int j = 0; //cmd2 index
-  while (cmd2[j] != NULL) {
-    strcpy(*cmd + i, cmd2[j]);
-    i += strlen(cmd2[j]);
-    (*cmd)[i++] = ' ';
-    j++;
+  int j;
+  while(seq[k] != NULL) {
+    j = 0; //cmd2 index
+    while (seq[k][j] != NULL) {
+      strcpy(*cmd + i, seq[k][j]);
+      i += strlen(seq[k][j]);
+      (*cmd)[i++] = ' ';
+      j++;
+    }
+    if (seq[k+1] != NULL) {
+      (*cmd)[i++] = '|';
+      (*cmd)[i++] = ' ';
+    }
+    k++;
   }
   (*cmd)[size] = '\0';
 }
 
-void execute_command(char ** command, int bg) {
-  execvp(command[0], command);
+void execute_command(char ** command) {
   // for now execute just the first
-  /* if (strcmp(command[0], "jobs") == 0) { */
-  /*   return jobs(); */
-  /* } */
-  /* pid_t pid_son; */
-  /* if ((pid_son = xfork()) == 0) { */
-  /*   //son */
-  /*   execvp(command[0], command); */
-  /*   assert(1==0); // line never executed */
-  /* } */
-  /* if (bg) { */
-  /*   struct bg_cmd new_cmd; */
-  /*   new_cmd.pid = pid_son; */
-  /*   new_cmd.cmd = NULL; */
-  /*   copy_cmd(&new_cmd.cmd, command); */
-  /*   assert(new_cmd.cmd != NULL); */
-  /*   push(&head, new_cmd); */
-  /* } else { */
-  /*   waitpid(pid_son, NULL, 0); */
-  /* } */
-
+  if (strcmp(command[0], "jobs") == 0) {
+    jobs();
+    exit(EXIT_SUCCESS);
+  } else {
+    execvp(command[0], command);
+  }
 }
 
+int length_seq(char *** seq) {
+  int i = 0;
+  while (seq[i] != NULL) i++;
+  return i;
+}
 void execute_sequence(struct cmdline * commands) {
-  int arr_pipe[2];
-  if (commands->seq[1] != NULL) {
-    pipe(arr_pipe);
+  int n = length_seq(commands->seq);
+  // we need n-1 pipes
+  int ** pipes = malloc(sizeof(int)*(n-1));
+  int i;
+  for (i = 0; i < n-1; i++) {
+    pipes[i] = malloc(sizeof(int)*2);
+    pipe(pipes[i]);
   }
   pid_t pid_son;
-  if ((pid_son = xfork()) == 0) {
-    dup2(arr_pipe[1], STDOUT_FILENO);
-    close(arr_pipe[1]); close(arr_pipe[0]);
-    execute_command(commands->seq[0], 0);
-  } else {
-    dup2(arr_pipe[0], STDIN_FILENO);
-    close(arr_pipe[1]); close(arr_pipe[0]);
-    execute_command(commands->seq[1], 0);
+  for(i=0; i < n; i++) {
+    if ((pid_son = xfork()) == 0) {
+      if (i < n-1)
+        dup2(pipes[i][1], STDOUT_FILENO);
+      if (i > 0)
+        dup2(pipes[i-1][0], STDIN_FILENO);
+      // son closes all open unused pipes
+      for (int j = 0; j < n-1; j++) {
+        close(pipes[j][0]); close(pipes[j][1]);
+      }
+      execute_command(commands->seq[i]);
+      assert(1==0);
+    }
   }
+  // father closses all open unused pipes
+  for (i = 0; i < n-1; i++) {
+    close(pipes[i][0]); close(pipes[i][1]);
+  }
+  if (commands->bg) {
+    struct bg_cmd new_cmd;
+    new_cmd.pid = pid_son;
+    new_cmd.cmd = NULL;
+    copy_seq(&new_cmd.cmd, commands->seq);
+    assert(new_cmd.cmd != NULL);
+    push(&head, new_cmd);
+  } else {
+    waitpid(pid_son, NULL, 0);
+  }
+
 }
 
 int question6_executer(char *line) {
@@ -213,6 +248,9 @@ int main() {
 	  terminate(0);
 	}
 
+  struct sigaction sa;
+  sa.sa_handler = &bg_command_finished;
+  sigaction(SIGCHLD,&sa,NULL);
 	execute_sequence(l);
 
 	if (l->err) {

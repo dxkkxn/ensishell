@@ -24,6 +24,7 @@ void push(node_t** head, struct bg_cmd cmd){
 void delete(node_t** head, node_t * node) {
     node_t * curr = *head;
     node_t * prev = NULL;
+    printf("in delete fnc\n");
     while (curr != node) {
         prev = curr;
         curr = curr->next;
@@ -38,4 +39,15 @@ void delete(node_t** head, node_t * node) {
     free(curr->val.cmd);
     free(curr);
     return;
+}
+
+/*
+** Return the node of pid if pid in the linked list null if not
+*/
+node_t* in(pid_t pid, node_t * head) {
+    node_t * curr = head;
+    while (curr != NULL && curr->val.pid != pid) {
+        curr = curr->next;
+    }
+    return curr;
 }
