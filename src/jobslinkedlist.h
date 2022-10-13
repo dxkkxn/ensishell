@@ -13,6 +13,7 @@ struct bg_cmd {
 
 typedef struct node_t {
   struct bg_cmd val;
+  int num;
   struct node_t* next;
 } node_t;
 
