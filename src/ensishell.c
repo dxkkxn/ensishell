@@ -158,6 +158,7 @@ void write_file(char * file) {
     int fd;
     char buf[1024];
     fd = open(file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    ftruncate(fd, 0);
     ssize_t size;
     while((size = read(rdout_pipe[0], buf, 1024)) > 0) {
       write(fd, buf, size);
