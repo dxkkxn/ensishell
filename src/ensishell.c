@@ -148,23 +148,44 @@ void read_file(char * file) {
   dup2(rdin_pipe[0], STDIN_FILENO);
   close(rdin_pipe[0]); close(rdin_pipe[1]);
 }
+
+void write_file(char * file) {
+  int rdout_pipe[2];
+  pipe(rdout_pipe);
+  if (xfork() == 0) {
+    close(rdout_pipe[1]);
+    // open and read
+    int fd;
+    char buf[1024];
+    fd = open(file, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    ssize_t size;
+    while((size = read(rdout_pipe[0], buf, 1024)) > 0) {
+      write(fd, buf, size);
+    }
+    close(rdout_pipe[0]);
+    exit(EXIT_SUCCESS);
+  }
+  dup2(rdout_pipe[1], STDOUT_FILENO);
+  close(rdout_pipe[0]); close(rdout_pipe[1]);
+}
+int ** alloc_and_init_pipes(unsigned int n) {
+  int ** pipes = malloc(sizeof(int)*(n));
+  for (int i = 0; i < n; i++) {
+    pipes[i] = malloc(sizeof(int)*2);
+    pipe(pipes[i]);
+  }
+  return pipes;
+}
 void execute_sequence(struct cmdline * commands) {
   if (commands->err != NULL) {
     printf("ERROR %s\n", commands->err);
     return;
   }
   int n = length_seq(commands->seq);
-  // we need n-1 pipes
-  int ** pipes = malloc(sizeof(int)*(n-1));
-
-  int i;
-  for (i = 0; i < n-1; i++) {
-    pipes[i] = malloc(sizeof(int)*2);
-    pipe(pipes[i]);
-  }
+  int ** pipes = alloc_and_init_pipes(n-1); // we need n-1 pipes
   pid_t pid_son;
   pid_t * all_sons = malloc(sizeof(pid_t)*n);
-  for(i=0; i < n; i++) {
+  for(int i = 0; i < n; i++) {
     if ((pid_son = xfork()) == 0) {
       if (i > 0)
         dup2(pipes[i-1][0], STDIN_FILENO);
@@ -173,20 +194,20 @@ void execute_sequence(struct cmdline * commands) {
       if (i == 0 && commands->in != NULL) {
         close_unused_pipes(pipes, n-1);
         read_file(commands->in);
-      } else if (i == n-1 && commands->out != NULL) {
-        continue;
+      }
+      if (i == n-1 && commands->out != NULL) {
+        close_unused_pipes(pipes, n-1);
+        write_file(commands->out);
       }
       // son closes all open (unused) pipes
       close_unused_pipes(pipes, n-1);
       execute_command(commands->seq[i]);
-      assert(1==0);
+      assert(1==0); // line never executed;
     }
     all_sons[i] = pid_son;
   }
   // father closses all open unused pipes
-  for (i = 0; i < n-1; i++) {
-    close(pipes[i][0]); close(pipes[i][1]);
-  }
+  close_unused_pipes(pipes, n-1);
   if (commands->bg) {
     struct bg_cmd new_cmd;
     new_cmd.pid = pid_son;
