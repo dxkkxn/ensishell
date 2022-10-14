@@ -124,6 +124,30 @@ int length_seq(char *** seq) {
   while (seq[i] != NULL) i++;
   return i;
 }
+void close_unused_pipes(int ** pipes, int n) {
+  for (int j = 0; j < n; j++) {
+    close(pipes[j][0]); close(pipes[j][1]);
+  }
+}
+void read_file(char * file) {
+  int rdin_pipe[2];
+  pipe(rdin_pipe);
+  if (xfork() == 0) {
+    close(rdin_pipe[0]);
+    // open and read
+    int fd;
+    char buf[1024];
+    fd = open(file, O_RDONLY);
+    ssize_t size;
+    while((size = read(fd, buf, 1024)) > 0) {
+      write(rdin_pipe[1], buf, size);
+    }
+    close(rdin_pipe[1]);
+    exit(EXIT_SUCCESS);
+  }
+  dup2(rdin_pipe[0], STDIN_FILENO);
+  close(rdin_pipe[0]); close(rdin_pipe[1]);
+}
 void execute_sequence(struct cmdline * commands) {
   if (commands->err != NULL) {
     printf("ERROR %s\n", commands->err);
@@ -146,35 +170,14 @@ void execute_sequence(struct cmdline * commands) {
         dup2(pipes[i-1][0], STDIN_FILENO);
       if (i < n-1)
         dup2(pipes[i][1], STDOUT_FILENO);
-
       if (i == 0 && commands->in != NULL) {
-        for (int j = 0; j < n-1; j++) {
-          close(pipes[j][0]); close(pipes[j][1]);
-        }
-        int rdin_pipe[2];
-        pipe(rdin_pipe);
-        if (xfork() == 0) {
-          close(rdin_pipe[0]);
-          // open and read
-          int fd;
-          char buf[1024];
-          fd = open(commands->in, O_RDONLY);
-          ssize_t size;
-          while((size = read(fd, buf, 1024)) > 0) {
-            write(rdin_pipe[1], buf, size);
-          }
-          close(rdin_pipe[1]);
-          exit(EXIT_SUCCESS);
-        }
-        dup2(rdin_pipe[0], STDIN_FILENO);
-        close(rdin_pipe[0]); close(rdin_pipe[1]);
+        close_unused_pipes(pipes, n-1);
+        read_file(commands->in);
       } else if (i == n-1 && commands->out != NULL) {
         continue;
       }
-      // son closes all open unused pipes
-      for (int j = 0; j < n-1; j++) {
-        close(pipes[j][0]); close(pipes[j][1]);
-      }
+      // son closes all open (unused) pipes
+      close_unused_pipes(pipes, n-1);
       execute_command(commands->seq[i]);
       assert(1==0);
     }
