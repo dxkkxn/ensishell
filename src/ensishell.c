@@ -116,6 +116,8 @@ void execute_command(char ** command) {
     exit(EXIT_SUCCESS);
   } else {
     execvp(command[0], command);
+    perror("execvp failed :");
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -170,12 +172,19 @@ void write_file(char * file) {
   close(rdout_pipe[0]); close(rdout_pipe[1]);
 }
 int ** alloc_and_init_pipes(unsigned int n) {
+  if (n == 0) return NULL;
   int ** pipes = malloc(sizeof(int)*(n));
   for (int i = 0; i < n; i++) {
     pipes[i] = malloc(sizeof(int)*2);
     pipe(pipes[i]);
   }
   return pipes;
+}
+void free_pipes(int ** pipes, int n) {
+  for (int i = 0; i < n; i++) {
+    free(pipes[i]);
+  }
+  free(pipes);
 }
 void execute_sequence(struct cmdline * commands) {
   if (commands->err != NULL) {
@@ -220,7 +229,8 @@ void execute_sequence(struct cmdline * commands) {
     for(int i = 0; i < n; i++)
       waitpid(all_sons[i], NULL, 0);
   }
-
+  free_pipes(pipes, n-1);
+  free(all_sons);
 }
 
 int question6_executer(char *line) {
@@ -229,10 +239,8 @@ int question6_executer(char *line) {
    * parsecmd, then fork+execvp, for a single command.
    * pipe and i/o redirection are not required.
    */
-  printf("Not implemented yet: can not execute %s\n", line);
-
-  /* Remove this line when using parsecmd as it will free it */
-  free(line);
+  struct cmdline * cmd = parsecmd(&line);
+  execute_sequence(cmd);
 
   return 0;
 }
