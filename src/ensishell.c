@@ -270,6 +270,9 @@ int main() {
   scm_c_define_gsubr("executer", 1, 0, 0, executer_wrapper);
 #endif
 
+  struct sigaction sa;
+  sa.sa_handler = &bg_command_finished;
+  sigaction(SIGCHLD,&sa,NULL);
   while (1) {
 	struct cmdline *l;
 	char *line = 0;
@@ -313,9 +316,6 @@ int main() {
 	  terminate(0);
 	}
 
-  struct sigaction sa;
-  sa.sa_handler = &bg_command_finished;
-  sigaction(SIGCHLD,&sa,NULL);
 	execute_sequence(l);
 
 	if (l->err) {
