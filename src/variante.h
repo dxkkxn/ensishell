@@ -1,7 +1,7 @@
 #ifndef VARIANTE_H
 #define VARIANTE_H
 
-#define LOGINS benjelly
+#define LOGINS benjelly;bidaultl
 #define SUJET 6
 #define USE_GUILE 1
 #define USE_GNU_READLINE 1

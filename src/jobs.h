@@ -11,8 +11,15 @@
 
 #include "jobslinkedlist.h"
 
+/* Delete the background command process once finished */
 void bg_command_finished(int sig);
+
+/* The jobs command: it prints pid and associated text of the background commands that are currently running */
 void jobs(void);
+
+/* Count the total size of the given sequence */
 size_t compute_needed_size(char ***seq);
+
+/* Build the command text associated to the given sequence */
 void copy_seq(char **cmd, char ***seq);
 #endif // JOBS_H

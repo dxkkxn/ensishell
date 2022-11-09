@@ -17,9 +17,16 @@ typedef struct node_t {
   struct node_t* next;
 } node_t;
 
+/*  */
 void push(node_t** head, struct bg_cmd cmd);
+
+/*  */
 int length(node_t* head);
+
+/*  */
 void delete(node_t** head, node_t * node);
+
+/*  */
 node_t* in(pid_t pid, node_t * head);
 
 
