@@ -66,12 +66,14 @@ int length_seq(char ***seq) {
     i++;
   return i;
 }
+
 void close_unused_pipes(int **pipes, int n) {
   for (int j = 0; j < n; j++) {
     close(pipes[j][0]);
     close(pipes[j][1]);
   }
 }
+
 int **alloc_and_init_pipes(unsigned int n) {
   if (n == 0)
     return NULL;
@@ -82,12 +84,15 @@ int **alloc_and_init_pipes(unsigned int n) {
   }
   return pipes;
 }
+
 void free_pipes(int **pipes, int n) {
   for (int i = 0; i < n; i++) {
     free(pipes[i]);
   }
   free(pipes);
 }
+
+
 void execute_sequence(struct cmdline *commands) {
   if (commands->err != NULL) {
     fprintf(stderr, "ERROR %s\n", commands->err);

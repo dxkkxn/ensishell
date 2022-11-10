@@ -6,9 +6,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-/* Set the file descriptor of the given file as standard input to be read */
+/* Create a son that reads a file and send it to the stdin of the father processus */
 void read_file(char *file);
 
-/* Set the file descriptor of the given file as standard output to write inside */
+/* Create a son that open that reads from a pipe and writes the output in a file */
 void write_file(char *file);
+
 #endif // REDIRECT_H

@@ -28,7 +28,7 @@ int length(node_t* head);
 /* Delete the given node from the list */
 void delete(node_t** head, node_t * node);
 
-/* Return the node of pid if pid in the linked list null if not */
+/* Return the node of pid if pid is the linked list null if not */
 node_t* in(pid_t pid, node_t * head);
 
 
