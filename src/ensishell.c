@@ -15,9 +15,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "jobs.h"
 #include "readcmd.h"
 #include "redirect.h"
-#include "jobs.h"
 #include "variante.h"
 
 #ifndef VARIANTE
@@ -47,7 +47,6 @@ node_t *head = NULL;
  *  execute all commands passed as parameter
  *
  */
-
 
 void execute_command(char **command) {
   // for now execute just the first
@@ -173,9 +172,12 @@ int main() {
   scm_c_define_gsubr("executer", 1, 0, 0, executer_wrapper);
 #endif
 
+  // Async termination
   struct sigaction sa;
-  sa.sa_handler = &bg_command_finished;
+  sa.sa_sigaction = bg_command_finished;
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
   sigaction(SIGCHLD, &sa, NULL);
+
   while (1) {
     struct cmdline *l;
     char *line = 0;

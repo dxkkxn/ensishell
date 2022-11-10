@@ -1,14 +1,18 @@
 #include "jobs.h"
 
-extern node_t * head;
-void bg_command_finished(int sig) {
+extern node_t *head;
+void bg_command_finished(int signo, siginfo_t *x, void *y) {
   errno = 0;
-  pid_t exited_process = waitpid(-1, NULL, WNOHANG);
-  node_t *exited_node;
-  if ((exited_node = in(exited_process, head))) {
-    printf("[%d] %d done     %s\n", exited_node->num, exited_process,
-           exited_node->val.cmd);
-    delete (&head, exited_node);
+  pid_t exited_process;
+  while ((exited_process = waitpid(-1, NULL, WNOHANG)) > 0) {
+    printf("bg cmd pid: %d\n", exited_process);
+    node_t *exited_node;
+    if ((exited_node = in(exited_process, head))) {
+      printf("[%d] %d done     %s\nensishell>", exited_node->num,
+             exited_process, exited_node->val.cmd);
+      fflush(stdout);
+      delete (&head, exited_node);
+    }
   }
 }
 
