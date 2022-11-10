@@ -42,9 +42,6 @@ void delete(node_t** head, node_t * node) {
     return;
 }
 
-/*
-** Return the node of pid if pid in the linked list null if not
-*/
 node_t* in(pid_t pid, node_t * head) {
     node_t * curr = head;
     while (curr != NULL && curr->val.pid != pid) {

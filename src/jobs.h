@@ -11,8 +11,7 @@
 
 #include "jobslinkedlist.h"
 
-/* Delete the background command process once finished */
-//void bg_command_finished(int sig);
+/* Delete the background command process once done */
 void bg_command_finished(int signo, siginfo_t *, void *) ;
 
 /* The jobs command: it prints pid and associated text of the background commands that are currently running */
